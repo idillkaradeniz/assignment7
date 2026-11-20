@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router";
 import { useFetch } from "../hooks/useFetch.js";
 import { fetchProduct } from "../api/productsApi.js";
+import { useCartStore } from "../store/cartStore.js";
 
 function ProductDetail() {
   // id from the url is always a string, for example "5"
@@ -9,6 +10,9 @@ function ProductDetail() {
 
   // id is in deps, so going from /products/1 to /products/2 loads the new product
   const { loading, error, data: product } = useFetch((signal) => fetchProduct(id, signal), [id]);
+
+  // only the action, so this page does not re-render when the cart changes
+  const addItem = useCartStore((state) => state.addItem);
 
   const nextId = Number(id) + 1;
 
@@ -47,6 +51,7 @@ function ProductDetail() {
           <p className="category">{product.category}</p>
           <p>{product.description}</p>
           <p className="price">${product.price.toFixed(2)}</p>
+          <button onClick={() => addItem(product)}>Add to cart</button>
         </div>
       </div>
 
