@@ -75,6 +75,60 @@ everything still runs in the browser and can be changed there. **Client-side pro
 user-experience feature, not security.** There is also no real server: `authApi.js` only compares
 the username and password with a fixed pair.
 
+## Reasoning questions
+
+### 1. State choices
+- **Signed-in user:** in `AuthContext` (Context + `useReducer`). Many components need it (navbar,
+  protected route, login) and it changes rarely, only on login and logout.
+- **Cart:** in the Zustand store. It changes often and is read in many places (navbar count, cart
+  page, add buttons), and with selectors each component only re-renders for the part it uses. It
+  also has to be saved in `localStorage`, which is easy with `subscribe` outside React.
+- **Filter values:** in the URL query string (`useSearchParams`). That way the filtered view can
+  be shared as a link and survives a refresh, which normal state can't do.
+- **Product list:** in the `useFetch` state of `ProductList`, because it is server data that only
+  this page needs. The filtered list and the categories are not stored at all, they are computed
+  from it during render.
+- **Theme:** in `Layout` with `useLocalStorage`, because it has to survive reloads and the wrapper
+  div that gets the class is in `Layout`. `NavBar` gets it as props.
+
+### 2. Context versus store
+When a Context value changes, every component that uses that context re-renders, even if it only
+needs a small part of the value. That is fine for the user, who changes maybe twice per visit. The
+cart changes every time someone clicks "Add to cart" or "+", so with Context the whole tree that
+reads the cart would re-render each time, and I couldn't make the navbar re-render only when the
+count changes. Putting the user in Zustand would work, but it would mean an extra global store for
+something React already handles well, and the cart in Context would also need a `useEffect` in a
+component to save it, which the assignment doesn't allow.
+
+### 3. Custom hooks
+`useFetch` shares the **logic**: the reducer with loading / error / data, starting the request
+when the inputs change, aborting the old request in the cleanup and ignoring `AbortError`. It does
+**not** share the **state**. `ProductList` and `ProductDetail` each call the hook and each get
+their own reducer, so loading a product doesn't change the list and the other way around. It also
+doesn't know what it fetches, each page passes its own function (`fetchProducts` or
+`fetchProduct(id)`).
+
+### 4. Route parameters
+`useParams()` always gives strings, so on `/products/3` the `id` is `"3"`, not `3`. It mattered
+for the "Next product" link: `id + 1` would give `"31"`, so I use `Number(id) + 1`. In the cart
+the ids are numbers that come from the API object, not from the URL, so comparing them with `===`
+works there. For `fetchProduct(id)` the string is fine because it only goes into the URL.
+
+### 5. Protected routes
+`ProtectedRoute` only decides what React renders in the browser. Anyone can open the dev tools,
+change the state or call the API directly, and the "server" (`authApi.js`) is also code inside the
+browser bundle, so the password is visible in the JavaScript. Real security needs a backend that
+checks the password, gives back something like a session cookie or token, and checks it again on
+every request for protected data. The client-side check would then only be there for a nicer UX.
+
+### 6. Deep links
+On a plain static file server, reloading `/products/3` makes the browser ask the server for a file
+at `/products/3`. That file doesn't exist (there is only `index.html` and the assets), so the server
+answers 404 and React never loads. The Vite development server has a fallback for single page apps:
+when a path is not a real file, it sends `index.html`, then react-router reads the URL and shows the
+right page. On a static host you have to configure the same thing, a rewrite of all paths to
+`index.html`.
+
 ## Self-study
 
 - **Updating one query parameter without losing the others:** `setSearchParams` from
