@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCartStore, selectItemCount } from "../store/cartStore.js";
 
-function NavBar() {
+function NavBar({ theme, onToggleTheme }) {
   const { user, logOut } = useAuth();
   // the selector returns a number, so the navbar only re-renders when the count changes
   const itemCount = useCartStore(selectItemCount);
@@ -32,6 +32,8 @@ function NavBar() {
         ) : (
           <NavLink to="/login">Login</NavLink>
         )}
+
+        <button onClick={onToggleTheme}>{theme === "light" ? "Dark mode" : "Light mode"}</button>
       </div>
     </nav>
   );
